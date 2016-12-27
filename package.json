@@ -1,8 +1,8 @@
 {
-  "name": "shapedetection",
+  "name": "shapedetection-polyfill",
   "version": "0.1.0",
   "description": "A simple polyfill for the ShapeDetection API, based on tracking.js.",
-  "main": "index.js",
+  "main": "src/shapedetection.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -22,10 +22,10 @@
     "gulp-rename": "^1.2.2",
     "gulp-uglify": "^2.0.0",
     "jsfeat": "^0.0.8",
-    "npm-git-install": "^0.2.0",
     "qrcode-reader": "git+https://github.com/H-Plus-Time/jsqrcode.git"
   },
   "devDependencies": {
-    "dat.gui": "^0.6.1"
+    "dat.gui": "^0.6.1",
+    "npm-git-install": "^0.2.0"
   }
 }

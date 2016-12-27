@@ -1,7 +1,7 @@
 {
-  "name": "shapedetection",
+  "name": "shapedetection-polyfill",
   "description": "A simple polyfill for the ShapeDetection API, based on tracking.js.",
-  "main": "index.js",
+  "main": "src/shapedetection.js",
   "authors": [
     "H-Plus-Time"
   ],
