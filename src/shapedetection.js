@@ -68,7 +68,7 @@ function FaceDetector(conf) {
 
 
 function BarcodeDetector() {
-    this.detect = function(image) {
+    this.detect = function(canvas) {
         // do a bunch of fancy analysis, return a promise.
 
         function stubFunc() {
@@ -96,9 +96,63 @@ function BarcodeDetector() {
             }]
             return null, prepackagedResp;
         }
+        function calculateSignedArea(a,b,c) {
+          return (a.x*(b.y-c.y) + b.x*(c.y-a.y) + c.x*(a.y-b.y))/2;
+        }
         return new Promise(function(resolve, reject) {
-            var err, data = stubFunc();
-            err ? reject(err) : resolve(data);
+            qr = new QrCode();
+            qr.callback = function(result, err) {
+              if(!result) {
+                return;
+              }
+              pts = result.points;
+              // determine which coordinate swap to do
+              if(calculateSignedArea(pts[0], pts[1], pts[2]) > 0) {
+                if(calculateSignedArea(pts[0], pts[1], pts[3]) > 0) {
+                  if(calculateSignedArea(pts[0], pts[2], pts[3]) > 0) {
+                    tmp = pts[1];
+                    pts[1] = pts[3];
+                    pts[3] = tmp;
+                  } else {
+                    tmp = pts[0];
+                    pts[0] = pts[1];
+                    pts[1] = tmp;
+                  }
+                } else {
+                  tmp = pts[1];
+                  pts[1] = pts[2];
+                  pts[2] = tmp;
+                }
+              } else {
+                if(calculateSignedArea(pts[0], pts[2], pts[3]) > 0) {
+                  if(calculateSignedArea(pts[0], pts[1], pts[3]) > 0) {
+                    tmp = pts[0];
+                    pts[0] = pts[3];
+                    pts[3] = tmp;
+                  } else {
+                    tmp = pts[2];
+                    pts[2] = pts[3];
+                    pts[3] = tmp;
+                  }
+                }
+                // no need for else case - no swap required
+              }
+              // calculate boundingBox components
+              x = Math.min(pts.map(function(p) { return p.x }));
+              y = Math.min(pts.map(function(p) { return p.y }));
+              width = Math.max(pts.map(function(p) { return p.x })) - x;
+              height = Math.max(pts.map(function(p) { return p.y })) - y;
+              proc_result = {
+                rawValue: result.url, boundingBox: {
+                  x: x, y: y, width: width, height: height
+                },
+                cornerPoints: pts.map(function(p) {
+                  return {x: p.x, y: p.y}
+                })
+              }
+              resolve(result);
+            }
+            qr.decode(canvas.toDataURL());
         })
     }
 }

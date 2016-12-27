@@ -21,7 +21,9 @@
     "gulp-concat": "^2.6.1",
     "gulp-rename": "^1.2.2",
     "gulp-uglify": "^2.0.0",
-    "jsfeat": "^0.0.8"
+    "jsfeat": "^0.0.8",
+    "npm-git-install": "^0.2.0",
+    "qrcode-reader": "git+https://github.com/H-Plus-Time/jsqrcode.git"
   },
   "devDependencies": {
     "dat.gui": "^0.6.1"
