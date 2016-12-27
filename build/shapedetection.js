@@ -8975,7 +8975,7 @@ function BarcodeDetector() {
                   return {x: p.x, y: p.y}
                 })
               }
-              resolve(result);
+              resolve(proc_result);
             }
             qr.decode(canvas.toDataURL());
         })
