@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
+        <script src="../build/shapedetection.js"></script>
+        <script src="../node_modules/dat.gui/build/dat.gui.min.js"></script>
+        <script src="js/compatibility.js"></script>
+        <script src="js/profiler.js"></script>
+    </head>
+    <body>
+        <video id="webcam" width="640" height="480" style="display:none;"></video>
+            <div style=" width:640px;height:480px;margin: 10px auto;">
+                <canvas id="canvas" width="640" height="480"></canvas>
+                <div id="no_rtc" class="alert alert-error" style="display:none;"></div>
+                <div id="log" class="alert alert-info"></div>
+            </div>
+    </body>
+    <script type="text/javascript">
+
+        $(window).load(function() {
+            "use strict";
+
+            // lets do some fun
+            var video = document.getElementById('webcam');
+            var canvas = document.getElementById('canvas');
+            try {
+                var attempts = 0;
+                var readyListener = function(event) {
+                    findVideoSize();
+                };
+                var findVideoSize = function() {
+                    if(video.videoWidth > 0 && video.videoHeight > 0) {
+                        video.removeEventListener('loadeddata', readyListener);
+                        onDimensionsReady(video.videoWidth, video.videoHeight);
+                    } else {
+                        if(attempts < 10) {
+                            attempts++;
+                            setTimeout(findVideoSize, 200);
+                        } else {
+                            onDimensionsReady(640, 480);
+                        }
+                    }
+                };
+                var onDimensionsReady = function(width, height) {
+                    demo_app(width, height);
+                    compatibility.requestAnimationFrame(tick);
+                };
+
+                video.addEventListener('loadeddata', readyListener);
+
+                compatibility.getUserMedia({video: true}, function(stream) {
+                    try {
+                        video.src = compatibility.URL.createObjectURL(stream);
+                    } catch (error) {
+                        video.src = stream;
+                    }
+                    setTimeout(function() {
+                            video.play();
+                        }, 500);
+                }, function (error) {
+                    $('#canvas').hide();
+                    $('#log').hide();
+                    $('#no_rtc').html('<h4>WebRTC not available.</h4>');
+                    $('#no_rtc').show();
+                });
+            } catch (error) {
+                $('#canvas').hide();
+                $('#log').hide();
+                $('#no_rtc').html('<h4>Something goes wrong...</h4>');
+                $('#no_rtc').show();
+            }
+
+            var stat = new profiler();
+
+            var gui,options,ctx,canvasWidth,canvasHeight;
+            var img_u8,work_canvas,work_ctx,ii_sum,ii_sqsum,ii_tilted,edg,ii_canny;
+            var classifier = jsfeat.haar.frontalface;
+
+            var max_work_size = 160;
+
+            var demo_opt = function(){
+                this.min_scale = 2;
+                this.scale_factor = 1.15;
+                this.use_canny = false;
+                this.edges_density = 0.13;
+                this.equalize_histogram = true;
+            }
+
+            function demo_app(videoWidth, videoHeight) {
+                canvasWidth  = canvas.width;
+                canvasHeight = canvas.height;
+                ctx = canvas.getContext('2d');
+
+                ctx.fillStyle = "rgb(0,255,0)";
+                ctx.strokeStyle = "rgb(0,255,0)";
+
+                var scale = Math.min(max_work_size/videoWidth, max_work_size/videoHeight);
+                var w = (videoWidth*scale)|0;
+                var h = (videoHeight*scale)|0;
+
+                img_u8 = new jsfeat.matrix_t(w, h, jsfeat.U8_t | jsfeat.C1_t);
+                edg = new jsfeat.matrix_t(w, h, jsfeat.U8_t | jsfeat.C1_t);
+                work_canvas = document.createElement('canvas');
+                work_canvas.width = w;
+                work_canvas.height = h;
+                work_ctx = work_canvas.getContext('2d');
+                ii_sum = new Int32Array((w+1)*(h+1));
+                ii_sqsum = new Int32Array((w+1)*(h+1));
+                ii_tilted = new Int32Array((w+1)*(h+1));
+                ii_canny = new Int32Array((w+1)*(h+1));
+
+                options = new demo_opt();
+                gui = new dat.GUI();
+
+                gui.add(options, 'min_scale', 1, 4).step(0.1);
+                gui.add(options, 'scale_factor', 1.1, 2).step(0.025);
+                gui.add(options, 'equalize_histogram');
+                gui.add(options, 'use_canny');
+                gui.add(options, 'edges_density', 0.01, 1.).step(0.005);
+
+                stat.add("haar detector");
+                document.detector = new FaceDetector({});
+            }
+
+            function tick() {
+                compatibility.requestAnimationFrame(tick);
+                stat.new_frame();
+
+
+                if (video.readyState === video.HAVE_ENOUGH_DATA) {
+
+                    ctx.drawImage(video, 0, 0, canvasWidth, canvasHeight);
+
+                    work_ctx.drawImage(video, 0, 0, work_canvas.width, work_canvas.height);
+
+                    stat.start("haar detector");
+
+                    document.detector.detect(work_canvas).then((rects) => {
+                      // draw only most confident one
+                      console.log(rects)
+                      draw_faces(ctx, rects, canvasWidth/img_u8.cols, 1);
+                      stat.stop("haar detector");
+                    })
+                    $('#log').html(stat.log());
+                }
+            }
+
+            function draw_faces(ctx, rects, sc, max) {
+                var on = rects.length;
+                if(on && max) {
+                    jsfeat.math.qsort(rects, 0, on-1, function(a,b){return (b.confidence<a.confidence);})
+                }
+                var n = max || on;
+                n = Math.min(n, on);
+                var r;
+                for(var i = 0; i < n; ++i) {
+                    r = rects[i].boundingBox;
+                    ctx.strokeRect((r.x*sc)|0,(r.y*sc)|0,(r.width*sc)|0,(r.height*sc)|0);
+                }
+            }
+
+            $(window).unload(function() {
+                video.pause();
+                video.src=null;
+            });
+        });
+        </script>
+</html>
