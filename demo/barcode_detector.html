@@ -73,7 +73,7 @@
             var stat = new profiler();
 
             var gui,options,ctx,canvasWidth,canvasHeight;
-            var work_canvas,work_ctx;
+            var img_u8,work_canvas,work_ctx,ii_sum,ii_sqsum,ii_tilted,edg,ii_canny;
             var classifier = jsfeat.haar.frontalface;
 
             var max_work_size = 160;
@@ -81,6 +81,9 @@
             var demo_opt = function(){
                 this.min_scale = 2;
                 this.scale_factor = 1.15;
+                this.use_canny = false;
+                this.edges_density = 0.13;
+                this.equalize_histogram = true;
             }
 
             function demo_app(videoWidth, videoHeight) {
@@ -95,51 +98,60 @@
                 var w = (videoWidth*scale)|0;
                 var h = (videoHeight*scale)|0;
 
+                img_u8 = new jsfeat.matrix_t(w, h, jsfeat.U8_t | jsfeat.C1_t);
+                edg = new jsfeat.matrix_t(w, h, jsfeat.U8_t | jsfeat.C1_t);
                 work_canvas = document.createElement('canvas');
                 work_canvas.width = w;
                 work_canvas.height = h;
                 work_ctx = work_canvas.getContext('2d');
+                ii_sum = new Int32Array((w+1)*(h+1));
+                ii_sqsum = new Int32Array((w+1)*(h+1));
+                ii_tilted = new Int32Array((w+1)*(h+1));
+                ii_canny = new Int32Array((w+1)*(h+1));
 
                 options = new demo_opt();
                 gui = new dat.GUI();
 
                 gui.add(options, 'min_scale', 1, 4).step(0.1);
                 gui.add(options, 'scale_factor', 1.1, 2).step(0.025);
+                gui.add(options, 'equalize_histogram');
+                gui.add(options, 'use_canny');
+                gui.add(options, 'edges_density', 0.01, 1.).step(0.005);
 
-                stat.add("jsqrcode");
+                stat.add("haar detector");
                 document.detector = new BarcodeDetector({});
             }
 
             function tick() {
-                compatibility.requestAnimationFrame(tick);
-                stat.new_frame();
-
                 if (video.readyState === video.HAVE_ENOUGH_DATA) {
 
                     ctx.drawImage(video, 0, 0, canvasWidth, canvasHeight);
 
                     work_ctx.drawImage(video, 0, 0, work_canvas.width, work_canvas.height);
 
-                    stat.start("jsqrcode");
+                    stat.start("haar detector");
 
                     document.detector.detect(work_canvas).then((rects) => {
-                      // draw only most confident one
-                      console.log(rects)
-                      draw_barcodes(ctx, rects, 1);
-                      stat.stop("jsqrcode");
+                      compatibility.requestAnimationFrame(
+                        draw_barcodes.bind(
+                          null, ctx, rects, canvasWidth/img_u8.cols, 1));
+                      stat.new_frame();
+                      stat.stop("haar detector");
                     })
                     $('#log').html(stat.log());
+                    compatibility.requestAnimationFrame(tick);
+                    stat.new_frame();
                 }
             }
 
-            function draw_barcodes(ctx, rects, max) {
+            function draw_barcodes(ctx, rects, sc, max) {
                 var on = rects.length;
                 var n = max || on;
                 n = Math.min(n, on);
                 var r;
                 for(var i = 0; i < n; ++i) {
                     r = rects[i].boundingBox;
-                    ctx.strokeRect((r.x)|0,(r.y)|0,(r.width)|0,(r.height)|0);
+                    ctx.strokeRect((r.x*sc)|0,(r.y*sc)|0,(r.width*sc)|0,(r.height*sc)|0);
                 }
             }
 

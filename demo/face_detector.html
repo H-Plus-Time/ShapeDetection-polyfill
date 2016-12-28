@@ -136,8 +136,6 @@
                     stat.start("haar detector");
 
                     document.detector.detect(work_canvas).then((rects) => {
-                      // draw only most confident one
-                      console.log(rects)
                       draw_faces(ctx, rects, canvasWidth/img_u8.cols, 1);
                       stat.stop("haar detector");
                     })
@@ -147,6 +145,7 @@
 
             function draw_faces(ctx, rects, sc, max) {
                 var on = rects.length;
+                console.log(rects)
                 if(on && max) {
                     jsfeat.math.qsort(rects, 0, on-1, function(a,b){return (b.confidence<a.confidence);})
                 }
